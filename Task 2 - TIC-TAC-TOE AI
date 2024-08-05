@@ -1,0 +1,204 @@
+from logging import root
+import tkinter as tk
+from tkinter import messagebox
+import math
+
+class TicTacToe:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Tic-Tac-Toe")
+        self.root.geometry("400x500")
+        
+        # Colors
+        self.bg_color = "#F0F0F0"
+        self.title_color = "#333333"
+        self.board_color = "#FFFFFF"
+        self.button_color = "#DDDDDD"
+        self.player_colors = {'X': '#FF6347', 'O': '#4682B4'}
+
+        # Fonts
+        self.title_font = ('Arial', 24, 'bold')
+        self.button_font = ('Arial', 20)
+
+        # Board initialization
+        self.board = [' ' for _ in range(9)]
+        self.current_player = 'X'
+
+        # Main frame
+        self.main_frame = tk.Frame(self.root, bg=self.bg_color)
+        self.main_frame.pack(expand=True, fill=tk.BOTH)
+
+        # Title label
+        title_label = tk.Label(self.main_frame, text="Tic-Tac-Toe", font=self.title_font, fg=self.title_color, bg=self.bg_color)
+        title_label.pack(pady=20)
+
+        # Start button
+        start_button = tk.Button(self.main_frame, text="Start Game", font=self.button_font, bg='#32CD32', fg='white',
+                                 width=15, height=2, command=self.start_game, relief=tk.RAISED)
+        start_button.pack(pady=10)
+
+        # Exit button
+        exit_button = tk.Button(self.main_frame, text="Exit", font=self.button_font, bg='#FF6347', fg='white',
+                                width=15, height=2, command=root.quit, relief=tk.RAISED)
+        exit_button.pack(pady=10)
+
+        # Menu bar
+        menubar = tk.Menu(root)
+        menubar.add_command(label="Rules", command=self.show_rules)
+        menubar.add_command(label="Exit", command=root.quit)
+        root.config(menu=menubar)
+
+        # Game status
+        self.game_started = False
+
+    def start_game(self):
+        if not self.game_started:
+            self.game_started = True
+
+            # Destroy start screen widgets
+            for widget in self.main_frame.winfo_children():
+                widget.destroy()
+
+            # Create game board
+            self.create_board()
+
+            # Create reset button
+            reset_button = tk.Button(self.main_frame, text="Reset Game", font=self.button_font, bg='#4682B4', fg='white',
+                                     width=15, height=2, command=self.reset_board, relief=tk.RAISED)
+            reset_button.pack(pady=10)
+
+    def create_board(self):
+        self.buttons = []
+        for i in range(3):
+            for j in range(3):
+                button = tk.Button(self.main_frame, text='', font=self.button_font, width=6, height=3,
+                                   command=lambda row=i, col=j: self.on_click(row, col), bg=self.button_color,
+                                   activebackground=self.button_color, activeforeground=self.title_color)
+                button.grid(row=i, column=j, padx=5, pady=5, sticky="nsew")
+                self.main_frame.grid_rowconfigure(i, weight=1)
+                self.main_frame.grid_columnconfigure(j, weight=1)
+                
+                self.buttons.append(button)
+
+    def on_click(self, row, col):
+        idx = row * 3 + col
+        if self.board[idx] == ' ' and not self.is_winner('X') and not self.is_winner('O'):
+            self.board[idx] = self.current_player
+            self.buttons[idx]['text'] = self.current_player
+            self.buttons[idx]['fg'] = self.player_colors[self.current_player]
+            
+            if self.is_winner(self.current_player):
+                messagebox.showinfo("Tic-Tac-Toe", f"Player {self.current_player} wins!")
+                self.end_game()
+            elif self.num_empty_spots() == 0:
+                messagebox.showinfo("Tic-Tac-Toe", "It's a draw!")
+                self.end_game()
+            else:
+                self.current_player = 'O' if self.current_player == 'X' else 'X'
+                self.ai_move()
+
+    def ai_move(self):
+        best_move = self.find_best_move()
+        self.board[best_move] = self.current_player
+        self.buttons[best_move]['text'] = self.current_player
+        self.buttons[best_move]['fg'] = self.player_colors[self.current_player]
+        
+        if self.is_winner(self.current_player):
+            messagebox.showinfo("Tic-Tac-Toe", f"Player {self.current_player} wins!")
+            self.end_game()
+        elif self.num_empty_spots() == 0:
+            messagebox.showinfo("Tic-Tac-Toe", "It's a draw!")
+            self.end_game()
+        else:
+            self.current_player = 'O' if self.current_player == 'X' else 'X'
+
+    def reset_board(self):
+        self.board = [' ' for _ in range(9)]
+        self.current_player = 'X'
+        for button in self.buttons:
+            button['text'] = ''
+        self.game_started = False
+        self.start_game()  # Recreate the start screen
+
+    def end_game(self):
+        self.game_started = False
+        self.reset_button.config(state=tk.DISABLED)
+        self.start_button = tk.Button(self.main_frame, text="Restart Game", font=('Arial', 14), bg='#32CD32', fg='white',
+                                      width=15, height=2, command=self.start_game)
+        self.start_button.pack(pady=10)
+        self.exit_button = tk.Button(self.main_frame, text="Exit", font=('Arial', 14), bg='#FF6347', fg='white',
+                                      width=15, height=2, command=root.quit)
+        self.exit_button.pack(pady=10)
+
+    def is_winner(self, player):
+        # Check rows
+        for i in range(0, 9, 3):
+            if all(self.board[i+j] == player for j in range(3)):
+                return True
+        # Check columns
+        for i in range(3):
+            if all(self.board[i+j] == player for j in range(0, 9, 3)):
+                return True
+        # Check diagonals
+        if all(self.board[i] == player for i in range(0, 9, 4)):
+            return True
+        if all(self.board[i] == player for i in range(2, 7, 2)):
+            return True
+        return False
+
+    def num_empty_spots(self):
+        return sum(1 for spot in self.board if spot == ' ')
+
+    def find_best_move(self):
+        best_eval = -math.inf
+        best_move = None
+        for move in range(9):
+            if self.board[move] == ' ':
+                self.board[move] = 'O'
+                eval = self.minimax(0, False)
+                self.board[move] = ' '
+                if eval > best_eval:
+                    best_eval = eval
+                    best_move = move
+        return best_move
+
+    def minimax(self, depth, maximizing_player):
+        if self.is_winner('X'):
+            return -1
+        if self.is_winner('O'):
+            return 1
+        if self.num_empty_spots() == 0:
+            return 0
+
+        if maximizing_player:
+            max_eval = -math.inf
+            for move in range(9):
+                if self.board[move] == ' ':
+                    self.board[move] = 'O'
+                    eval = self.minimax(depth + 1, False)
+                    self.board[move] = ' '
+                    max_eval = max(max_eval, eval)
+            return max_eval
+        else:
+            min_eval = math.inf
+            for move in range(9):
+                if self.board[move] == ' ':
+                    self.board[move] = 'X'
+                    eval = self.minimax(depth + 1, True)
+                    self.board[move] = ' '
+                    min_eval = min(min_eval, eval)
+            return min_eval
+
+    def show_rules(self):
+        messagebox.showinfo("Rules of Tic-Tac-Toe",
+                            "Tic-Tac-Toe is a game for two players, X and O, who take turns marking the spaces in a 3x3 grid. "
+                            "The player who succeeds in placing three of their marks in a horizontal, vertical, or diagonal row wins the game. "
+                            "The game ends in a draw if all 9 spaces are filled without either player achieving three in a row.")
+
+def main():
+    root = tk.Tk()
+    game = TicTacToe(root)
+    root.mainloop()
+
+if __name__ == '__main__':
+    main()
