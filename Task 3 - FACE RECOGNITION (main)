@@ -1,0 +1,77 @@
+import cv2
+
+def generate_dataset(img, user_id, img_id):
+    """Save the dataset image."""
+    cv2.imwrite(f"data/user.{user_id}.{img_id}.jpeg", img)
+
+def draw_boundary(img, classifier, scaleFactor, minNeighbors, color, text, clf=None):
+    """Draw boundaries around detected features and recognize faces."""
+    gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    features = classifier.detectMultiScale(gray_img, scaleFactor, minNeighbors)
+    coords = []
+    for (x, y, w, h) in features:
+        cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
+        if clf is not None:
+            id, _ = clf.predict(gray_img[y:y + h, x:x + w])
+            if id == 1:
+                cv2.putText(img, "Anadh", (x, y - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 1, cv2.LINE_AA)
+        coords.append((x, y, w, h))  # Collect all coordinates
+
+    return coords
+
+def recognize(img, clf, faceCascade):
+    """Recognize and draw face boundaries on the image."""
+    color = {"blue": (255, 0, 0)}
+    coords = draw_boundary(img, faceCascade, 1.1, 10, color["blue"], "Face", clf)
+    return img, coords
+
+def detect(img, faceCascade, eyeCascade, noseCascade, mouthCascade, img_id, clf):
+    """Detect and draw boundaries for face, eyes, nose, and mouth, and save the face region."""
+    color = {"blue": (255, 0, 0), "red": (0, 0, 255), "green": (0, 255, 0), "white": (255, 255, 255)}
+    face_coords = draw_boundary(img, faceCascade, 1.1, 10, color["blue"], "Face")
+
+    for (x, y, w, h) in face_coords:
+        roi_img = img[y:y + h, x:x + w]
+
+        user_id = 1  # This should be set dynamically if you have multiple users
+        generate_dataset(roi_img, user_id, img_id)
+
+        # Draw boundaries for eyes, nose, and mouth in the ROI
+        #draw_boundary(roi_img, eyeCascade, 1.1, 14, color["red"], "Eyes")
+        #draw_boundary(roi_img, noseCascade, 1.1, 5, color["green"], "Nose")
+        #draw_boundary(roi_img, mouthCascade, 1.1, 20, color["white"], "Mouth")
+
+    return img
+
+def main():
+    faceCascade = cv2.CascadeClassifier(r"C:\Users\anadh\Downloads\haarcascade_frontalface_default.xml")
+    eyeCascade = cv2.CascadeClassifier(r"C:\Users\anadh\Downloads\haarcascade_eye.xml")
+    noseCascade = cv2.CascadeClassifier(r"C:\Users\anadh\Downloads\nose.xml")
+    mouthCascade = cv2.CascadeClassifier(r"C:\Users\anadh\Downloads\mouth.xml")
+
+    clf = cv2.face.LBPHFaceRecognizer_create()
+    clf.read(r"C:\Users\anadh\Desktop\PROJECTS\TDS Avenue\classifier.yml")
+
+    video_capture = cv2.VideoCapture(0)
+
+    img_id = 0
+
+    while True:
+        ret, img = video_capture.read()
+        if not ret:
+            break
+
+        img, face_coords = recognize(img, clf, faceCascade)
+        img = detect(img, faceCascade, eyeCascade, noseCascade, mouthCascade, img_id, clf)
+        
+        cv2.imshow("Face Detection", img)
+        
+        img_id += 1
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    video_capture.release()
+    cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    main()
